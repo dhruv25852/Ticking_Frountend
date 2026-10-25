@@ -15,7 +15,7 @@ export default function ProductCard({ product }) {
   const inWishlist = isInWishlist(product._id);
   const imageUrl = product.images && product.images.length > 0
     ? product.images[0]
-    : '/images/watches/hero_chronograph.jpg';
+    : 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843442/hero_chronograph.jpg';
 
   return (
     <motion.div

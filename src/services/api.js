@@ -1,7 +1,9 @@
 const BASE_URL = '/api';
 
 export const apiRequest = async (endpoint, options = {}) => {
-  const token = localStorage.getItem('ticking_token');
+  const token =
+    (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('ticking_token') : null) ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('ticking_token') : null);
 
   const headers = {
     ...options.headers
@@ -33,8 +35,15 @@ export const apiRequest = async (endpoint, options = {}) => {
         endpoint !== '/auth/register'
       ) {
         // Token expired or invalid
-        localStorage.removeItem('ticking_token');
-        localStorage.removeItem('ticking_user');
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.removeItem('ticking_token');
+          sessionStorage.removeItem('ticking_user');
+        }
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('ticking_token');
+          localStorage.removeItem('ticking_user');
+          localStorage.removeItem('ticking_remember_me');
+        }
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('auth:unauthorized', {

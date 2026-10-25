@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Shield, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -6,14 +6,27 @@ import { useToast } from '../../context/ToastContext';
 import { validateEmail, validateRequired } from '../../utils/validation';
 
 export default function AdminLogin() {
-  const [email, setEmail] = useState('admin@ticking.com');
-  const [password, setPassword] = useState('adminpassword123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   const { adminLogin } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+
+  // Ensure admin login form is completely clean on mount and resets upon logout
+  useEffect(() => {
+    const resetForm = () => {
+      setEmail('');
+      setPassword('');
+      setErrors({});
+    };
+
+    resetForm();
+    window.addEventListener('auth:logout', resetForm);
+    return () => window.removeEventListener('auth:logout', resetForm);
+  }, []);
 
   const validate = () => {
     const newErrors = {};
@@ -37,6 +50,9 @@ export default function AdminLogin() {
     setLoading(true);
     try {
       await adminLogin(email.trim(), password);
+      setEmail('');
+      setPassword('');
+      setErrors({});
       showToast('Master administrator privileges verified', 'success');
       navigate('/admin/dashboard');
     } catch {
@@ -66,7 +82,11 @@ export default function AdminLogin() {
           </p>
         </div>
 
-        <form onSubmit={handleAdminSubmit} noValidate className="flex flex-col gap-4">
+        <form onSubmit={handleAdminSubmit} noValidate autoComplete="off" className="flex flex-col gap-4">
+          {/* Hidden inputs to neutralize aggressive browser autofill */}
+          <input type="text" style={{ display: 'none' }} tabIndex="-1" autoComplete="false" />
+          <input type="password" style={{ display: 'none' }} tabIndex="-1" autoComplete="false" />
+
           <div>
             <label className="block text-[11px] uppercase tracking-wider text-stone-400 mb-1.5 font-medium">
               Administrative Email
@@ -75,7 +95,8 @@ export default function AdminLogin() {
               <Mail className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="admin@domain.com"
+                autoComplete="off"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -104,7 +125,8 @@ export default function AdminLogin() {
               <Lock className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
-                placeholder="••••••••"
+                autoComplete="new-password"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -7,9 +7,36 @@ import {
   Lock,
   ArrowRight,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Info
 } from 'lucide-react';
 import api from '../services/api';
+
+/**
+ * Dynamically loads the official Razorpay Checkout SDK.
+ */
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const existingScript = document.getElementById('razorpay-checkout-script');
+    if (existingScript) {
+      existingScript.onload = () => resolve(true);
+      existingScript.onerror = () => resolve(false);
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'razorpay-checkout-script';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -54,6 +81,16 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState('Online Payment');
   const [notes, setNotes] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [razorpayConfig, setRazorpayConfig] = useState({ isConfigured: true, keyId: '' });
+
+  useEffect(() => {
+    loadRazorpayScript();
+    api.get('/payment/config')
+      .then((cfg) => {
+        if (cfg) setRazorpayConfig(cfg);
+      })
+      .catch(() => {});
+  }, []);
 
   if (cartItems.length === 0) {
     return (
@@ -128,16 +165,110 @@ export default function Checkout() {
         notes
       };
 
-      const createdOrder = await api.post('/orders', orderPayload);
-      clearCart();
-      showToast('Your order has been placed successfully!', 'success');
-      navigate(`/order-success/${createdOrder._id || createdOrder.orderId}`, {
-        state: { order: createdOrder }
+      if (paymentMethod === 'Cash on Delivery') {
+        const createdOrder = await api.post('/orders', orderPayload);
+        clearCart();
+        showToast('Your order has been placed successfully!', 'success');
+        navigate(`/order-success/${createdOrder._id || createdOrder.orderId}`, {
+          state: { order: createdOrder }
+        });
+        setPlacingOrder(false);
+        return;
+      }
+
+      // Online Payment via Razorpay Test Mode
+      const scriptReady = await loadRazorpayScript();
+      if (!scriptReady) {
+        setPlacingOrder(false);
+        showToast('Unable to load Razorpay payment gateway. Please check your internet connection.', 'error');
+        return;
+      }
+
+      // 1. Request backend to create Razorpay Order
+      let rzpOrder;
+      try {
+        rzpOrder = await api.post('/payment/razorpay/create-order', {
+          items: orderPayload.items,
+          discount: orderPayload.discount,
+          couponCode: orderPayload.couponCode,
+          shippingAddress: orderPayload.shippingAddress
+        });
+      } catch (orderErr) {
+        setPlacingOrder(false);
+        showToast(
+          orderErr.message || 'Failed to initiate Razorpay order. Please check backend credentials.',
+          'error'
+        );
+        return;
+      }
+
+      // 2. Open official Razorpay modal
+      const options = {
+        key: rzpOrder.keyId,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency || 'INR',
+        name: 'TICKING LUXURY WATCH',
+        description: 'Luxury Timepiece Acquisition',
+        image: 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843442/hero_chronograph.jpg',
+        order_id: rzpOrder.orderId,
+        handler: async function (response) {
+          try {
+            showToast('Verifying payment signature with Geneva vault...', 'info');
+            const verifiedOrder = await api.post('/payment/razorpay/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderDetails: orderPayload
+            });
+
+            clearCart();
+            showToast('Payment verified successfully! Your order has been placed.', 'success');
+            navigate(`/order-success/${verifiedOrder._id || verifiedOrder.orderId}`, {
+              state: { order: verifiedOrder }
+            });
+          } catch (verifyErr) {
+            showToast(
+              verifyErr.message || 'Payment verification failed. Please contact concierge.',
+              'error'
+            );
+          } finally {
+            setPlacingOrder(false);
+          }
+        },
+        prefill: {
+          name: formData.fullName,
+          email: formData.email,
+          contact: formData.phone
+        },
+        notes: {
+          deliveryCity: formData.city,
+          pincode: formData.pincode
+        },
+        theme: {
+          color: '#D4AF37',
+          backdrop_color: 'rgba(8, 8, 9, 0.85)'
+        },
+        modal: {
+          ondismiss: function () {
+            setPlacingOrder(false);
+            showToast('Payment window closed. Your cart remains saved.', 'info');
+          }
+        }
+      };
+
+      const rzpInstance = new window.Razorpay(options);
+      rzpInstance.on('payment.failed', function (failureResponse) {
+        setPlacingOrder(false);
+        const errorDesc =
+          failureResponse.error?.description ||
+          failureResponse.error?.reason ||
+          'Payment could not be completed.';
+        showToast(`Payment failed: ${errorDesc}`, 'error');
       });
+      rzpInstance.open();
     } catch (err) {
-      showToast(err.message || 'Failed to place order. Please try again.', 'error');
-    } finally {
       setPlacingOrder(false);
+      showToast(err.message || 'Failed to place order. Please try again.', 'error');
     }
   };
 
@@ -352,7 +483,7 @@ export default function Checkout() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white flex items-center gap-2">
                       <CreditCard className="w-4 h-4 text-[#D4AF37]" />
-                      <span>Online Payment</span>
+                      <span>Online Payment (Razorpay)</span>
                     </span>
                     <input
                       type="radio"
@@ -364,8 +495,15 @@ export default function Checkout() {
                     />
                   </div>
                   <p className="text-[11px] text-stone-400 mt-1">
-                    Credit/Debit Card, UPI, Netbanking, Net Verification (Instant processing).
+                    Debit & Credit Cards, UPI, Netbanking via Razorpay Secure Gateway.
                   </p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <span className="px-1.5 py-0.5 bg-[#1a1a20] border border-stone-700/70 rounded text-[9px] font-mono text-stone-300">VISA</span>
+                    <span className="px-1.5 py-0.5 bg-[#1a1a20] border border-stone-700/70 rounded text-[9px] font-mono text-stone-300">MasterCard</span>
+                    <span className="px-1.5 py-0.5 bg-[#1a1a20] border border-stone-700/70 rounded text-[9px] font-mono text-stone-300">RuPay</span>
+                    <span className="px-1.5 py-0.5 bg-[#1a1a20] border border-stone-700/70 rounded text-[9px] font-mono text-stone-300">Amex</span>
+                    <span className="px-1.5 py-0.5 bg-[#1a1a20] border border-[#D4AF37]/40 rounded text-[9px] font-mono text-[#D4AF37]">UPI / NetBanking</span>
+                  </div>
                 </label>
 
                 <label
@@ -394,6 +532,15 @@ export default function Checkout() {
                   </p>
                 </label>
               </div>
+
+              {razorpayConfig && !razorpayConfig.isConfigured && paymentMethod === 'Online Payment' && (
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5 text-xs text-amber-200">
+                  <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-[11px] leading-relaxed">
+                    <strong className="text-amber-300 font-semibold">Razorpay Test Mode Ready:</strong> Online card checkout will process simulated test transactions once you fill <code className="text-white bg-black/40 px-1 py-0.5 rounded font-mono">RAZORPAY_KEY_ID</code> and <code className="text-white bg-black/40 px-1 py-0.5 rounded font-mono">RAZORPAY_KEY_SECRET</code> in <code className="text-white bg-black/40 px-1 py-0.5 rounded font-mono">backend/.env</code>.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-stone-400 mb-1.5 font-medium">
@@ -474,7 +621,15 @@ export default function Checkout() {
               disabled={placingOrder}
               className="w-full py-4 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:from-[#F3E5AB] hover:to-[#D4AF37] text-black font-bold text-xs uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2 shadow-2xl transition-all disabled:opacity-50"
             >
-              <span>{placingOrder ? 'Processing Acquisition...' : 'Authorize & Place Order'}</span>
+              <span>
+                {placingOrder
+                  ? paymentMethod === 'Online Payment'
+                    ? 'Opening Razorpay Gateway...'
+                    : 'Confirming Acquisition...'
+                  : paymentMethod === 'Online Payment'
+                    ? 'Pay with Razorpay (Cards / UPI)'
+                    : 'Place Cash on Delivery Order'}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
 

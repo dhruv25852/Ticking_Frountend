@@ -15,8 +15,7 @@ import {
   Settings,
   LogOut,
   Menu,
-  X,
-  ExternalLink
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
@@ -113,22 +112,11 @@ export default function AdminLayout() {
           </nav>
         </div>
 
-        {/* Sidebar Footer: Back to Store & Logout */}
-        <div className="p-3.5 border-t border-stone-800/80 bg-[#09090C] flex flex-col gap-1.5 shrink-0">
-          <Link
-            to="/"
-            target="_blank"
-            className="flex items-center justify-between px-3 py-2 text-xs text-stone-400 hover:text-[#D4AF37] hover:bg-stone-900/60 rounded-xl transition-colors font-medium uppercase tracking-wider"
-          >
-            <span className="flex items-center gap-2">
-              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-              <span>Live Storefront</span>
-            </span>
-          </Link>
-
+        {/* Sidebar Footer: Logout */}
+        <div className="p-3.5 border-t border-stone-800/80 bg-[#09090C] shrink-0">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded-xl transition-colors text-left font-medium uppercase tracking-wider"
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded-xl transition-colors text-left font-medium uppercase tracking-wider"
           >
             <LogOut className="w-3.5 h-3.5 shrink-0" />
             <span>Sign Out</span>

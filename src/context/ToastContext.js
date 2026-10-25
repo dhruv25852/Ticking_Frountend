@@ -12,14 +12,18 @@ export const ToastProvider = ({ children }) => {
   }, []);
 
   const showToast = useCallback((message, type = 'success', duration = 3500) => {
-    const id = Date.now() + Math.random().toString();
-    setToasts((prev) => [...prev, { id, message, type }]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        removeToast(id);
-      }, duration);
-    }
+    setToasts((prev) => {
+      if (prev.some((t) => t.message === message && t.type === type)) {
+        return prev;
+      }
+      const id = Date.now() + Math.random().toString();
+      if (duration > 0) {
+        setTimeout(() => {
+          removeToast(id);
+        }, duration);
+      }
+      return [...prev, { id, message, type }];
+    });
   }, [removeToast]);
 
   return React.createElement(

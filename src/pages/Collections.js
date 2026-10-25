@@ -27,42 +27,42 @@ export default function Collections() {
       name: 'Luxury Watches',
       tagline: 'Haute Horlogerie Masterpieces',
       desc: 'Complications sculpted in solid 18K yellow gold, rose gold, and 950 platinum with hand-finished bevels.',
-      image: '/images/watches/nautilus.jpg',
+      image: 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843442/nautilus.jpg',
       categoryQuery: 'Luxury Watches'
     },
     {
       name: 'Sports Watches',
       tagline: 'High-Performance Instruments',
       desc: 'Engineered for extreme ocean depths, chronometric endurance, and ceramic bezel resilience.',
-      image: '/images/watches/submariner.jpg',
+      image: 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843445/submariner.jpg',
       categoryQuery: 'Sports Watches'
     },
     {
       name: 'Classic Watches',
       tagline: 'Timeless Dress Silhouettes',
       desc: 'Refined dials with Roman numerals, blued sword hands, and ultra-thin automatic calibres.',
-      image: '/images/watches/datejust.jpg',
+      image: 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843446/datejust.jpg',
       categoryQuery: 'Classic Watches'
     },
     {
       name: 'Heritage Watches',
       tagline: 'Historic Milestones',
       desc: 'Homages to moon landings, aviation circular slide rules, and historical ocean explorations.',
-      image: '/images/watches/speedmaster.jpg',
+      image: 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843444/speedmaster.jpg',
       categoryQuery: 'Heritage Watches'
     },
     {
       name: 'Smart Watches',
       tagline: 'Connected Swiss Artistry',
       desc: 'Luxury titanium cases housing advanced OLED high-res screens and connected sports telemetry.',
-      image: '/images/watches/tag_connected.jpg',
+      image: 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843445/tag_connected.jpg',
       categoryQuery: 'Smart Watches'
     },
     {
       name: 'Limited Editions',
       tagline: 'Vault Numbered References',
       desc: 'Strictly allocated, numbered collector items produced in single-digit annual batches.',
-      image: '/images/watches/lange_1815.jpg',
+      image: 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843442/lange_1815.jpg',
       categoryQuery: 'Limited Editions'
     }
   ];

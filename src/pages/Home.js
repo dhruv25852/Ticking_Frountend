@@ -140,7 +140,7 @@ export default function Home() {
 
               {/* High-res Hero Watch Artwork */}
               <img
-                src="/images/watches/submariner.jpg"
+                src="https://res.cloudinary.com/bjaodxyt/image/upload/v1792843445/submariner.jpg"
                 alt="Rolex Submariner Masterpiece"
                 className="relative z-10 w-full h-full object-contain filter drop-shadow-[0_20px_35px_rgba(0,0,0,0.9)] transform hover:scale-105 transition-transform duration-700"
               />
@@ -231,7 +231,7 @@ export default function Home() {
           <div className="lg:col-span-6 relative">
             <div className="relative rounded-2xl overflow-hidden border border-[#D4AF37]/30 shadow-2xl group">
               <img
-                src="/images/watches/movement_craft.jpg"
+                src="https://res.cloudinary.com/bjaodxyt/image/upload/v1792843443/movement_craft.jpg"
                 alt="Swiss Haute Horlogerie tourbillon skeleton watch movement"
                 className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-700"
               />

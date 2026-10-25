@@ -143,7 +143,7 @@ export default function ProductDetails() {
   const inWishlist = isInWishlist(product._id);
   const images = product.images && product.images.length > 0
     ? product.images
-    : ['/images/watches/hero_chronograph.jpg'];
+    : ['https://res.cloudinary.com/bjaodxyt/image/upload/v1792843442/hero_chronograph.jpg'];
 
   return (
     <div className="w-full bg-[#080809] min-h-screen text-stone-200 py-10 px-4 sm:px-8">

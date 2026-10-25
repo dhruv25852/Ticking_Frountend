@@ -112,7 +112,7 @@ export default function Cart() {
               const imgUrl =
                 item.images && item.images.length > 0
                   ? item.images[0]
-                  : '/images/watches/hero_chronograph.jpg';
+                  : 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843442/hero_chronograph.jpg';
 
               return (
                 <div

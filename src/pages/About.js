@@ -73,7 +73,7 @@ export default function About() {
           <div className="lg:col-span-6 relative">
             <div className="relative rounded-2xl overflow-hidden border border-[#D4AF37]/30 shadow-2xl">
               <img
-                src="/images/watches/movement_craft.jpg"
+                src="https://res.cloudinary.com/bjaodxyt/image/upload/v1792843443/movement_craft.jpg"
                 alt="Swiss Haute Horlogerie skeleton tourbillon watch movement"
                 className="w-full h-auto object-cover"
               />

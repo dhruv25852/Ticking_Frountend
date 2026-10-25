@@ -51,7 +51,7 @@ export default function Wishlist() {
             const imgUrl =
               product.images && product.images.length > 0
                 ? product.images[0]
-                : '/images/watches/hero_chronograph.jpg';
+                : 'https://res.cloudinary.com/bjaodxyt/image/upload/v1792843442/hero_chronograph.jpg';
 
             return (
               <div

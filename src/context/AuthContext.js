@@ -4,16 +4,50 @@ import { useToast } from './ToastContext';
 
 const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    try {
-      const savedUser = localStorage.getItem('ticking_user');
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch {
-      return null;
+const getInitialAuth = () => {
+  if (typeof window === 'undefined') {
+    return { token: null, user: null };
+  }
+
+  try {
+    // 1. Check active session storage first
+    const sessionToken = sessionStorage.getItem('ticking_token');
+    const sessionUser = sessionStorage.getItem('ticking_user');
+    if (sessionToken && sessionUser) {
+      return {
+        token: sessionToken,
+        user: JSON.parse(sessionUser)
+      };
     }
-  });
-  const [token, setToken] = useState(() => localStorage.getItem('ticking_token') || null);
+
+    // 2. Only restore from localStorage if Remember Me was explicitly chosen
+    const isRemembered = localStorage.getItem('ticking_remember_me') === 'true';
+    if (isRemembered) {
+      const localToken = localStorage.getItem('ticking_token');
+      const localUser = localStorage.getItem('ticking_user');
+      if (localToken && localUser) {
+        sessionStorage.setItem('ticking_token', localToken);
+        sessionStorage.setItem('ticking_user', localUser);
+        return {
+          token: localToken,
+          user: JSON.parse(localUser)
+        };
+      }
+    } else {
+      // Purge any stale or leftover tokens in localStorage
+      localStorage.removeItem('ticking_token');
+      localStorage.removeItem('ticking_user');
+    }
+  } catch (err) {
+    console.error('[AuthContext] Error parsing initial auth state:', err);
+  }
+
+  return { token: null, user: null };
+};
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(() => getInitialAuth().user);
+  const [token, setToken] = useState(() => getInitialAuth().token);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const { showToast } = useToast();
@@ -21,8 +55,18 @@ export const AuthProvider = ({ children }) => {
   // Validate stored token and synchronize with MongoDB on mount
   useEffect(() => {
     const verifySession = async () => {
-      const storedToken = localStorage.getItem('ticking_token');
+      const isRemembered = localStorage.getItem('ticking_remember_me') === 'true';
+      const storedToken =
+        sessionStorage.getItem('ticking_token') ||
+        (isRemembered ? localStorage.getItem('ticking_token') : null);
+
       if (!storedToken) {
+        if (!isRemembered) {
+          localStorage.removeItem('ticking_token');
+          localStorage.removeItem('ticking_user');
+        }
+        setUser(null);
+        setToken(null);
         setInitializing(false);
         return;
       }
@@ -34,8 +78,11 @@ export const AuthProvider = ({ children }) => {
           const payloadJson = JSON.parse(atob(payloadBase64));
           if (payloadJson.exp && Date.now() >= payloadJson.exp * 1000) {
             console.warn('[AuthContext] Stored token has expired. Clearing session.');
+            sessionStorage.removeItem('ticking_token');
+            sessionStorage.removeItem('ticking_user');
             localStorage.removeItem('ticking_token');
             localStorage.removeItem('ticking_user');
+            localStorage.removeItem('ticking_remember_me');
             setUser(null);
             setToken(null);
             setInitializing(false);
@@ -50,12 +97,18 @@ export const AuthProvider = ({ children }) => {
         const profile = await api.get('/auth/profile');
         if (profile && profile._id) {
           setUser(profile);
-          localStorage.setItem('ticking_user', JSON.stringify(profile));
+          sessionStorage.setItem('ticking_user', JSON.stringify(profile));
+          if (localStorage.getItem('ticking_remember_me') === 'true') {
+            localStorage.setItem('ticking_user', JSON.stringify(profile));
+          }
         }
       } catch (err) {
         if (err.status === 401) {
+          sessionStorage.removeItem('ticking_token');
+          sessionStorage.removeItem('ticking_user');
           localStorage.removeItem('ticking_token');
           localStorage.removeItem('ticking_user');
+          localStorage.removeItem('ticking_remember_me');
           setUser(null);
           setToken(null);
         }
@@ -72,8 +125,15 @@ export const AuthProvider = ({ children }) => {
     const handleUnauthorized = (event) => {
       setUser(null);
       setToken(null);
-      localStorage.removeItem('ticking_token');
-      localStorage.removeItem('ticking_user');
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('ticking_token');
+        sessionStorage.removeItem('ticking_user');
+      }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('ticking_token');
+        localStorage.removeItem('ticking_user');
+        localStorage.removeItem('ticking_remember_me');
+      }
       const msg = event?.detail?.message || 'Your session has expired. Please sign in again.';
       showToast(msg, 'error');
     };
@@ -84,14 +144,27 @@ export const AuthProvider = ({ children }) => {
     }
   }, [showToast]);
 
-  const login = async (email, password) => {
+  const login = async (email, password, remember = false) => {
     setLoading(true);
     try {
       const data = await api.post('/auth/login', { email, password });
       setUser(data);
       setToken(data.token);
-      localStorage.setItem('ticking_token', data.token);
-      localStorage.setItem('ticking_user', JSON.stringify(data));
+
+      if (remember) {
+        localStorage.setItem('ticking_remember_me', 'true');
+        localStorage.setItem('ticking_token', data.token);
+        localStorage.setItem('ticking_user', JSON.stringify(data));
+        sessionStorage.setItem('ticking_token', data.token);
+        sessionStorage.setItem('ticking_user', JSON.stringify(data));
+      } else {
+        localStorage.removeItem('ticking_remember_me');
+        localStorage.removeItem('ticking_token');
+        localStorage.removeItem('ticking_user');
+        sessionStorage.setItem('ticking_token', data.token);
+        sessionStorage.setItem('ticking_user', JSON.stringify(data));
+      }
+
       showToast(`Welcome back, ${data.name}!`, 'success');
       return data;
     } catch (err) {
@@ -108,8 +181,14 @@ export const AuthProvider = ({ children }) => {
       const data = await api.post('/auth/admin/login', { email, password });
       setUser(data);
       setToken(data.token);
-      localStorage.setItem('ticking_token', data.token);
-      localStorage.setItem('ticking_user', JSON.stringify(data));
+
+      // Admin portal is session-only; not persisted into localStorage
+      sessionStorage.setItem('ticking_token', data.token);
+      sessionStorage.setItem('ticking_user', JSON.stringify(data));
+      localStorage.removeItem('ticking_remember_me');
+      localStorage.removeItem('ticking_token');
+      localStorage.removeItem('ticking_user');
+
       showToast(`Admin authenticated: Welcome ${data.name}`, 'success');
       return data;
     } catch (err) {
@@ -126,8 +205,13 @@ export const AuthProvider = ({ children }) => {
       const data = await api.post('/auth/register', userData);
       setUser(data);
       setToken(data.token);
-      localStorage.setItem('ticking_token', data.token);
-      localStorage.setItem('ticking_user', JSON.stringify(data));
+
+      sessionStorage.setItem('ticking_token', data.token);
+      sessionStorage.setItem('ticking_user', JSON.stringify(data));
+      localStorage.removeItem('ticking_remember_me');
+      localStorage.removeItem('ticking_token');
+      localStorage.removeItem('ticking_user');
+
       showToast(`Account created successfully! Welcome to TICKING.`, 'success');
       return data;
     } catch (err) {
@@ -138,15 +222,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Ignore network errors during logout
+    }
+
     setUser(null);
     setToken(null);
-    localStorage.removeItem('ticking_token');
-    localStorage.removeItem('ticking_user');
-    localStorage.removeItem('ticking_cart_guest');
-    localStorage.removeItem('ticking_local_cart');
-    localStorage.removeItem('ticking_wishlist_guest');
-    localStorage.removeItem('ticking_local_wishlist');
+
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('ticking_token');
+      sessionStorage.removeItem('ticking_user');
+      sessionStorage.clear();
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('ticking_token');
+      localStorage.removeItem('ticking_user');
+      localStorage.removeItem('ticking_remember_me');
+      localStorage.removeItem('ticking_cart_guest');
+      localStorage.removeItem('ticking_local_cart');
+      localStorage.removeItem('ticking_wishlist_guest');
+      localStorage.removeItem('ticking_local_wishlist');
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+    }
+
     showToast('You have been logged out.', 'info');
   };
 
@@ -155,7 +260,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const data = await api.put('/auth/profile', profileData);
       setUser(data);
-      localStorage.setItem('ticking_user', JSON.stringify(data));
+      sessionStorage.setItem('ticking_user', JSON.stringify(data));
+      if (localStorage.getItem('ticking_remember_me') === 'true') {
+        localStorage.setItem('ticking_user', JSON.stringify(data));
+      }
       showToast('Profile updated successfully!', 'success');
       return data;
     } catch (err) {
@@ -182,10 +290,50 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const deleteAccount = async (password) => {
+    setLoading(true);
+    try {
+      const data = await api.post('/auth/delete-account', { password });
+
+      // Clean up auth state immediately
+      setUser(null);
+      setToken(null);
+
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('ticking_token');
+        sessionStorage.removeItem('ticking_user');
+        sessionStorage.clear();
+      }
+
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('ticking_token');
+        localStorage.removeItem('ticking_user');
+        localStorage.removeItem('ticking_remember_me');
+        localStorage.removeItem('ticking_cart_guest');
+        localStorage.removeItem('ticking_local_cart');
+        localStorage.removeItem('ticking_wishlist_guest');
+        localStorage.removeItem('ticking_local_wishlist');
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+      }
+
+      return data;
+    } catch (err) {
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateUser = (updatedUserData) => {
     setUser((prev) => {
       const merged = { ...prev, ...updatedUserData };
-      localStorage.setItem('ticking_user', JSON.stringify(merged));
+      sessionStorage.setItem('ticking_user', JSON.stringify(merged));
+      if (localStorage.getItem('ticking_remember_me') === 'true') {
+        localStorage.setItem('ticking_user', JSON.stringify(merged));
+      }
       return merged;
     });
   };
@@ -205,7 +353,8 @@ export const AuthProvider = ({ children }) => {
         logout,
         updateProfile,
         updateUser,
-        changePassword
+        changePassword,
+        deleteAccount
       }}
     >
       {children}

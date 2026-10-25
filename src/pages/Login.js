@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +17,20 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '/';
+
+  // Ensure login form is clean on mount and resets upon user logout
+  useEffect(() => {
+    const resetForm = () => {
+      setEmail('');
+      setPassword('');
+      setRememberMe(false);
+      setErrors({});
+    };
+
+    resetForm();
+    window.addEventListener('auth:logout', resetForm);
+    return () => window.removeEventListener('auth:logout', resetForm);
+  }, []);
 
   const validate = () => {
     const newErrors = {};
@@ -37,7 +51,11 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password, rememberMe);
+      setEmail('');
+      setPassword('');
+      setRememberMe(false);
+      setErrors({});
       showToast('Welcome back to TICKING', 'success');
       navigate(redirect === 'checkout' ? '/checkout' : redirect);
     } catch {
@@ -68,7 +86,11 @@ export default function Login() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} noValidate autoComplete="off" className="flex flex-col gap-4">
+          {/* Hidden inputs to neutralize aggressive browser autofill */}
+          <input type="text" style={{ display: 'none' }} tabIndex="-1" autoComplete="false" />
+          <input type="password" style={{ display: 'none' }} tabIndex="-1" autoComplete="false" />
+
           <div>
             <label className="block text-[11px] uppercase tracking-wider text-stone-400 mb-1.5 font-medium text-left">
               Email Address
@@ -77,7 +99,8 @@ export default function Login() {
               <Mail className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="client@domain.com"
+                autoComplete="off"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -115,7 +138,8 @@ export default function Login() {
               <Lock className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
-                placeholder="••••••••"
+                autoComplete="new-password"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);

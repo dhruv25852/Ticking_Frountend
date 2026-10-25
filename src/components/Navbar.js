@@ -326,9 +326,10 @@ export default function Navbar() {
                         </Link>
                       )}
                       <button
-                        onClick={() => {
-                          logout();
+                        onClick={async () => {
                           setUserDropdown(false);
+                          await logout();
+                          navigate('/login');
                         }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors mt-1"
                       >
@@ -491,9 +492,10 @@ export default function Navbar() {
                     </Link>
                   )}
                   <button
-                    onClick={() => {
-                      logout();
+                    onClick={async () => {
                       setMobileMenuOpen(false);
+                      await logout();
+                      navigate('/login');
                     }}
                     className="text-center py-2 text-rose-400 text-xs uppercase tracking-wider"
                   >

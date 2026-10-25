@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   User,
   Phone,
@@ -10,6 +10,7 @@ import {
   Heart,
   LogOut,
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
   Camera,
   Trash2,
@@ -21,10 +22,17 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { validateName, validatePhone, validatePincode } from '../utils/validation';
 import ChangePasswordModal from '../components/ChangePasswordModal';
+import DeleteAccountModal from '../components/DeleteAccountModal';
 
 export default function Profile() {
   const { user, updateProfile, updateUser, logout, isAdmin } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   const fileInputRef = useRef(null);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -39,6 +47,7 @@ export default function Profile() {
   const [state, setState] = useState(defaultAddr.state || '');
   const [pincode, setPincode] = useState(defaultAddr.pincode || '');
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -300,12 +309,27 @@ export default function Profile() {
                 <Lock className="w-4 h-4 text-[#D4AF37]" />
               </button>
               <button
-                onClick={logout}
+                onClick={handleSignOut}
                 className="w-full py-2.5 px-4 bg-rose-950/20 hover:bg-rose-900/40 text-rose-300 rounded-xl text-xs flex items-center justify-between transition-colors mt-2"
               >
                 <span>Sign Out</span>
                 <LogOut className="w-4 h-4" />
               </button>
+
+              {/* Danger Action: Delete Account */}
+              <div className="pt-2 border-t border-stone-800/80 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteAccountOpen(true)}
+                  className="w-full py-2.5 px-4 bg-red-950/25 hover:bg-red-900/40 text-red-400 hover:text-red-300 border border-red-900/40 hover:border-red-600/60 rounded-xl text-xs flex items-center justify-between transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                    <span className="font-semibold">Delete Account</span>
+                  </div>
+                  <Trash2 className="w-3.5 h-3.5 text-red-500/70" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -452,8 +476,38 @@ export default function Profile() {
                   <Lock className="w-3.5 h-3.5 text-[#D4AF37]" />
                   <span>Change Password</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteAccountOpen(true)}
+                  className="px-6 py-3 border border-red-500/50 hover:border-red-500 hover:bg-red-500/10 text-red-400 hover:text-red-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  <span>Delete Account</span>
+                </button>
               </div>
             </form>
+
+            {/* Danger Zone Section */}
+            <div className="mt-8 pt-6 border-t border-stone-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Permanent Danger Zone</span>
+                </h4>
+                <p className="text-[11px] text-stone-500 mt-0.5">
+                  Permanently delete your user credentials, saved addresses, and horological wishlist.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDeleteAccountOpen(true)}
+                className="px-4 py-2.5 bg-red-950/30 hover:bg-red-900/50 text-red-400 hover:text-red-300 border border-red-800/50 hover:border-red-600/80 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Account</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -462,6 +516,12 @@ export default function Profile() {
       <ChangePasswordModal
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
+      />
+
+      {/* Dedicated Delete Account Modal */}
+      <DeleteAccountModal
+        isOpen={isDeleteAccountOpen}
+        onClose={() => setIsDeleteAccountOpen(false)}
       />
     </div>
   );
