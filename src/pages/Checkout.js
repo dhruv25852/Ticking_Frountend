@@ -82,6 +82,7 @@ export default function Checkout() {
   const [notes, setNotes] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [razorpayConfig, setRazorpayConfig] = useState({ isConfigured: true, keyId: '' });
+  const [transactionLimitNotice, setTransactionLimitNotice] = useState(null);
 
   useEffect(() => {
     loadRazorpayScript();
@@ -195,10 +196,15 @@ export default function Checkout() {
         });
       } catch (orderErr) {
         setPlacingOrder(false);
-        showToast(
-          orderErr.message || 'Failed to initiate Razorpay order. Please check backend credentials.',
-          'error'
-        );
+        const errMsg = orderErr.message || 'Failed to initiate Razorpay order. Please check backend credentials.';
+        const isLimit =
+          orderErr.data?.isLimitExceeded ||
+          errMsg.toLowerCase().includes('limit') ||
+          errMsg.toLowerCase().includes('exceeds');
+        if (isLimit) {
+          setTransactionLimitNotice(errMsg);
+        }
+        showToast(errMsg, 'error');
         return;
       }
 
@@ -504,6 +510,12 @@ export default function Checkout() {
                     <span className="px-1.5 py-0.5 bg-[#1a1a20] border border-stone-700/70 rounded text-[9px] font-mono text-stone-300">Amex</span>
                     <span className="px-1.5 py-0.5 bg-[#1a1a20] border border-[#D4AF37]/40 rounded text-[9px] font-mono text-[#D4AF37]">UPI / NetBanking</span>
                   </div>
+                  {grandTotal > 500000 && (
+                    <div className="mt-2 pt-2 border-t border-stone-800 text-[10px] text-amber-300/80 flex items-center gap-1.5">
+                      <Info className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                      <span>Online card payments above ₹5,00,000 are subject to your merchant account's Razorpay approved limit.</span>
+                    </div>
+                  )}
                 </label>
 
                 <label
@@ -523,7 +535,10 @@ export default function Checkout() {
                       name="paymentMethod"
                       value="Cash on Delivery"
                       checked={paymentMethod === 'Cash on Delivery'}
-                      onChange={() => setPaymentMethod('Cash on Delivery')}
+                      onChange={() => {
+                        setPaymentMethod('Cash on Delivery');
+                        setTransactionLimitNotice(null);
+                      }}
                       className="accent-[#D4AF37]"
                     />
                   </div>
@@ -614,6 +629,42 @@ export default function Checkout() {
                 </span>
               </div>
             </div>
+
+            {/* Razorpay High-Value Limit Notice Banner */}
+            {transactionLimitNotice && (
+              <div className="p-4 bg-amber-950/40 border border-amber-500/40 rounded-xl flex flex-col gap-3 text-xs text-amber-200">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 text-[11px] leading-relaxed">
+                    <strong className="text-amber-300 font-semibold block mb-1">
+                      Razorpay Gateway Limit Notice
+                    </strong>
+                    <p>{transactionLimitNotice}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-amber-500/20">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMethod('Cash on Delivery');
+                      setTransactionLimitNotice(null);
+                      showToast('Switched to Cash on Delivery. You can now place your order.', 'info');
+                    }}
+                    className="px-3.5 py-1.5 bg-[#D4AF37] hover:bg-[#F3E5AB] text-black font-semibold text-[11px] rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    Switch to Cash on Delivery
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTransactionLimitNotice(null)}
+                    className="text-[11px] text-stone-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
