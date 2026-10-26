@@ -21,6 +21,7 @@ import Checkout from '../pages/Checkout';
 import OrderSuccess from '../pages/OrderSuccess';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import ForgotPassword from '../pages/ForgotPassword';
 import Profile from '../pages/Profile';
 import Orders from '../pages/Orders';
 import OrderDetails from '../pages/OrderDetails';
@@ -67,7 +68,7 @@ const ProtectedAdminRoute = ({ children }) => {
       </div>
     );
   }
-  if (!isAuthenticated) return <Navigate to="/admin/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login?redirect=admin/dashboard" replace />;
   if (!isAdmin) return <Navigate to="/" replace />;
   return children;
 };
@@ -105,6 +106,7 @@ export default function AppRoutes() {
         />
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />
+        <Route path="forgot-password" element={<ForgotPassword />} />
         <Route path="search" element={<SearchResults />} />
 
         {/* Authenticated Customer Routes */}
@@ -137,8 +139,8 @@ export default function AppRoutes() {
         <Route path="*" element={<NotFound />} />
       </Route>
 
-      {/* Admin Login */}
-      <Route path="/admin/login" element={<AdminLogin />} />
+      {/* Admin Login - Redirect to unified login */}
+      <Route path="/admin/login" element={<Navigate to="/login" replace />} />
 
       {/* Admin Panel Dashboard */}
       <Route

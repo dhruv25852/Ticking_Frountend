@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Mail, Phone, Calendar, ShoppingBag, CheckCircle, XCircle, ShieldAlert, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
+import { Users, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import api from '../../services/api';
 import { formatPrice, formatDate } from '../../utils/formatters';
 import { useToast } from '../../context/ToastContext';
@@ -8,7 +8,6 @@ export default function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [updatingId, setUpdatingId] = useState(null);
   const { showToast } = useToast();
 
   const fetchCustomers = async () => {
@@ -31,26 +30,6 @@ export default function AdminCustomers() {
   useEffect(() => {
     fetchCustomers();
   }, []);
-
-  const handleToggleStatus = async (customer) => {
-    const newStatus = customer.isActive === false;
-    setUpdatingId(customer._id);
-    try {
-      await api.patch(`/auth/customers/${customer._id}/status`, { isActive: newStatus });
-      setCustomers((prev) =>
-        prev.map((c) => (c._id === customer._id ? { ...c, isActive: newStatus } : c))
-      );
-      showToast(
-        `Customer ${customer.name} ${newStatus ? 'activated' : 'deactivated'} successfully`,
-        'success'
-      );
-    } catch (err) {
-      console.error(err);
-      showToast(err.message || 'Failed to update customer status', 'error');
-    } finally {
-      setUpdatingId(null);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-6 text-left">
@@ -87,14 +66,13 @@ export default function AdminCustomers() {
                 <th className="py-4 px-4">Joined Date</th>
                 <th className="py-4 px-4">Total Orders</th>
                 <th className="py-4 px-4 text-center">Status</th>
-                <th className="py-4 px-4 text-right">Lifetime Expenditure</th>
-                <th className="py-4 px-6 text-right">Action</th>
+                <th className="py-4 px-6 text-right">Lifetime Expenditure</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-900">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="py-16 text-center">
+                  <td colSpan="6" className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <div className="w-7 h-7 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
                       <p className="text-xs uppercase tracking-widest text-stone-400 font-medium">
@@ -105,7 +83,7 @@ export default function AdminCustomers() {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan="7" className="py-16 text-center">
+                  <td colSpan="6" className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2.5 max-w-md mx-auto">
                       <div className="w-10 h-10 rounded-full bg-rose-950/40 border border-rose-500/40 flex items-center justify-center text-rose-400 mb-1">
                         <AlertCircle className="w-5 h-5" />
@@ -127,7 +105,7 @@ export default function AdminCustomers() {
                 </tr>
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-16 text-center">
+                  <td colSpan="6" className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Users className="w-8 h-8 text-stone-600 mb-1" />
                       <p className="text-sm font-medium text-stone-400">
@@ -149,9 +127,6 @@ export default function AdminCustomers() {
                         </div>
                         <div>
                           <span className="font-bold text-white block">{cust.name}</span>
-                          {cust.deletedAt && (
-                            <span className="text-[10px] text-rose-400 italic">Deactivated account</span>
-                          )}
                         </div>
                       </div>
                     </td>
@@ -166,7 +141,7 @@ export default function AdminCustomers() {
                       {cust.totalOrders || 0}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {cust.isActive !== false ? (
+                      {cust.isActive !== false && !cust.deletedAt ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/60 border border-emerald-500/40 text-emerald-400">
                           <CheckCircle className="w-3 h-3" />
                           <span>Active</span>
@@ -174,29 +149,12 @@ export default function AdminCustomers() {
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-950/60 border border-rose-500/40 text-rose-400">
                           <XCircle className="w-3 h-3" />
-                          <span>Inactive</span>
+                          <span>Deactivated</span>
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-right font-serif font-bold text-[#F3E5AB]">
+                    <td className="py-3 px-6 text-right font-serif font-bold text-[#F3E5AB]">
                       {formatPrice(cust.totalSpent || 0)}
-                    </td>
-                    <td className="py-3 px-6 text-right">
-                      <button
-                        onClick={() => handleToggleStatus(cust)}
-                        disabled={updatingId === cust._id}
-                        className={`px-3 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
-                          cust.isActive !== false
-                            ? 'border-rose-800/60 bg-rose-950/30 text-rose-300 hover:bg-rose-900/60'
-                            : 'border-emerald-800/60 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/60'
-                        } disabled:opacity-50`}
-                      >
-                        {updatingId === cust._id
-                          ? 'Updating...'
-                          : cust.isActive !== false
-                          ? 'Deactivate'
-                          : 'Activate'}
-                      </button>
                     </td>
                   </tr>
                 ))

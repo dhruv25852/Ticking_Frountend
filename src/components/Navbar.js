@@ -353,14 +353,6 @@ export default function Navbar() {
                       >
                         Create Account
                       </Link>
-                      <div className="border-t border-stone-800 my-1.5"></div>
-                      <Link
-                        to="/admin/login"
-                        onClick={() => setUserDropdown(false)}
-                        className="block px-3 py-1.5 text-center text-[11px] text-stone-400 hover:text-[#D4AF37] transition-colors"
-                      >
-                        Admin Portal
-                      </Link>
                     </>
                   )}
                 </div>

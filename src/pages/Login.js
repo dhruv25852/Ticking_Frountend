@@ -12,11 +12,25 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, initializing } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '/';
+
+  // Automatically redirect already authenticated users based on verified role
+  useEffect(() => {
+    if (!initializing && isAuthenticated && user) {
+      if ((user.role || '').toLowerCase() === 'admin') {
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        const dest = redirect === 'checkout'
+          ? '/checkout'
+          : (redirect && !redirect.toLowerCase().includes('admin') ? redirect : '/');
+        navigate(dest, { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, initializing, navigate, redirect]);
 
   // Ensure login form is clean on mount and resets upon user logout
   useEffect(() => {
@@ -51,15 +65,26 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      await login(email.trim(), password, rememberMe);
+      const authData = await login(email.trim(), password, rememberMe);
       setEmail('');
       setPassword('');
       setRememberMe(false);
       setErrors({});
-      showToast('Welcome back to TICKING', 'success');
-      navigate(redirect === 'checkout' ? '/checkout' : redirect);
+
+      // Identify the verified role from backend response
+      const isAdmin = (authData?.role || '').toLowerCase() === 'admin';
+
+      if (isAdmin) {
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        // Customer redirects to home page (or checkout if was completing an acquisition)
+        const destination = redirect === 'checkout'
+          ? '/checkout'
+          : (redirect && !redirect.toLowerCase().includes('admin') ? redirect : '/');
+        navigate(destination, { replace: true });
+      }
     } catch {
-      // Handled by context
+      // Error handled by AuthContext and ToastContext
     } finally {
       setLoading(false);
     }
@@ -126,13 +151,12 @@ export default function Login() {
               <label className="text-[11px] uppercase tracking-wider text-stone-400 font-medium">
                 Password
               </label>
-              <button
-                type="button"
-                onClick={() => showToast('Demo accounts: dhruv@ticking.com / userpassword123, or admin@ticking.com / adminpassword123', 'info', 6000)}
-                className="text-[10px] text-[#D4AF37] hover:underline"
+              <Link
+                to="/forgot-password"
+                className="text-[10px] text-[#D4AF37] hover:underline transition-colors font-medium"
               >
                 Forgot Password?
-              </button>
+              </Link>
             </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
