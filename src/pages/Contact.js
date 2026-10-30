@@ -217,7 +217,7 @@ export default function Contact() {
                       VISIT OUR BOUTIQUE
                     </h3>
                     <p className="text-stone-400 mt-0.5 leading-relaxed">
-                      123 Luxury Avenue, Geneva, Switzerland 1201
+                      123 Luxury Avenue, Ahemdabad, india
                     </p>
                   </div>
                 </div>
